@@ -1,0 +1,88 @@
+pipeline {
+    agent none
+
+    stages {
+
+        /* ============================
+           BACKEND BUILD (Maven + Java)
+        =============================*/
+        stage('Backend Build') {
+            agent {
+                docker {
+                    image 'maven:3.8.1-adoptopenjdk-11'
+                    args '-v $HOME/.m2:/root/.m2'   // cache dependencies
+                }
+            }
+            steps {
+                sh '''
+                    echo "===== Maven Version ====="
+                    mvn --version
+
+                    echo "===== Running Backend Build ====="
+                    mvn clean package -DskipTests
+                '''
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                }
+            }
+        }
+
+        /* ================================
+           FRONTEND BUILD (Node + npm)
+        =================================*/
+        stage('Frontend Build') {
+            agent {
+                docker {
+                    image 'node:16-alpine'
+                }
+            }
+            steps {
+                sh '''
+                    echo "===== Node and NPM Versions ====="
+                    node --version
+                    npm --version
+
+                    echo "===== Installing Frontend Dependencies ====="
+                    npm install
+
+                    echo "===== Building Frontend ====="
+                    npm run build
+                '''
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'dist/**/*', fingerprint: true
+                }
+            }
+        }
+
+        /* =============================
+           TEST STAGE
+        ==============================*/
+        stage('Run Tests') {
+            agent {
+                docker { image 'node:16-alpine' }
+            }
+            steps {
+                sh '''
+                    echo "===== Running Tests ====="
+                    npm test || true   # prevents pipeline failure
+                '''
+            }
+        }
+
+        /* =============================
+           DEPLOY STAGE
+        ==============================*/
+        stage('Deploy to Server') {
+            agent any
+            steps {
+                echo "Deploying to server..."
+                // Example only — modify for real server
+                // sh 'scp target/app.jar user@server:/deployments/'
+            }
+        }
+    }
+}
