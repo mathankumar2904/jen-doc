@@ -1,14 +1,16 @@
 pipeline {
-  agent { dockerfile true }
-  stages {
-    stage('Test') {
-      steps {
-        sh '''
-          node --version
-          git --version
-          curl --version
-        '''
-      }
+    agent any
+
+    stages {
+        stage('Test') {
+            steps {
+                bat """
+                docker build -t my-app .
+                docker run --rm my-app node --version
+                docker run --rm my-app git --version
+                docker run --rm my-app curl --version
+                """
+            }
+        }
     }
-  }
 }
