@@ -1,0 +1,47 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('docker-hub')
+        IMAGE_NAME = "mathan2904/tour-project"
+        IMAGE_TAG = "1.0"
+        CONTAINER_NAME = "tour-app"   // Name for your new container
+        HOST_PORT = "8080"            // Port for new container
+    }
+
+    stages {
+
+        stage('Pull Docker Image') {
+            steps {
+                echo "Pulling latest Docker image from Docker Hub..."
+                sh "docker pull ${IMAGE_NAME}:${IMAGE_TAG}"
+            }
+        }
+
+        stage('Stop Old Container') {
+            steps {
+                echo "Stopping old container if it exists..."
+                sh """
+                if [ \$(docker ps -aq -f name=${CONTAINER_NAME}) ]; then
+                    docker stop ${CONTAINER_NAME} || true
+                    docker rm ${CONTAINER_NAME} || true
+                fi
+                """
+            }
+        }
+
+        stage('Run New Container') {
+            steps {
+                echo "Starting new container..."
+                sh "docker run -d -p ${HOST_PORT}:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:${IMAGE_TAG}"
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Cleaning unused Docker resources..."
+            sh "docker system prune -f"
+        }
+    }
+}
